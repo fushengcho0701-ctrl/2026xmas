@@ -11,11 +11,9 @@
             font-family: 'Noto Sans TC', sans-serif; 
             background-color: #f2f5f3;
         }
-        .product-img { aspect-ratio: 1 / 1.1; object-fit: contain; }
         .qty-input::-webkit-inner-spin-button { opacity: 1; }
         .sticky-footer { background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(8px); }
         .order-slip { border: 2px solid #e2e8f0; border-radius: 1rem; padding: 1.5rem; background: #fff; }
-        /* 聖誕綠色系輔助類別 */
         .bg-xmas-green { background-color: #1b4332; }
         .bg-xmas-green-light { background-color: #2d6a4f; }
         .text-xmas-green { color: #1b4332; }
@@ -102,12 +100,12 @@
                 </div>
             </section>
 
-            <!-- 訂購內容品項 -->
+            <!-- 訂購內容品項 (放大單一商品版面) -->
             <h2 class="text-xl font-bold mb-4 flex items-center px-1 text-gray-800">
                 📦 訂購內容
             </h2>
-            <div id="productList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-10">
-                <p class="col-span-full text-center py-16 text-emerald-800 font-medium animate-pulse">正在載入商品資料...</p>
+            <div id="productList" class="w-full mb-10">
+                <p class="text-center py-12 text-emerald-800 font-medium animate-pulse">正在同步載入商品資料...</p>
             </div>
 
             <!-- 配送方式 -->
@@ -209,11 +207,10 @@
                     </div>
                 </div>
 
-                <div class="mt-8 flex flex-col space-y-3">
-                    <a href="https://lin.ee/TDtujRf" target="_blank" class="bg-emerald-700 hover:bg-emerald-800 text-white py-4 rounded-2xl font-bold text-center shadow-lg transition flex items-center justify-center space-x-2">
+                <div class="mt-8">
+                    <a href="https://lin.ee/TDtujRf" target="_blank" class="bg-emerald-700 hover:bg-emerald-800 text-white py-4 rounded-2xl font-bold text-center shadow-lg transition flex items-center justify-center space-x-2 w-full">
                         <span>開啟 LINE 回傳截圖</span>
                     </a>
-                    <button onclick="location.reload()" class="text-gray-400 underline text-xs text-center py-2">返回修改資料</button>
                 </div>
             </div>
         </div>
@@ -230,11 +227,12 @@
             "高雄尚陶坊花店": 200, "高雄花市": 200, "屏東國芳花店": 200
         };
 
-        // 預設備用商品資料（當 GAS 因 CORS 讀取失敗時備用）
+        const targetImgUrl = 'https://images.squarespace-cdn.com/content/689dd63b4e427050b1bc75a0/b6d78f78-6f4b-42bf-b15f-c93ca8de3055/%E7%A6%8F%E7%9B%9B%E8%AB%BE%E8%B2%9D%E6%9D%BE.jpg?content-type=image%2Fjpeg';
+        
         const fallbackProducts = [
             {
                 name: '進口聖誕諾貝松切枝一綑裝5kg',
-                img: 'https://images.unsplash.com/photo-1543589077-47d81606c1bf?auto=format&fit=crop&w=500&q=80',
+                img: targetImgUrl,
                 price: 2800,
                 series: ''
             }
@@ -244,7 +242,7 @@
         const productList = document.getElementById('productList');
         const backhaulSelect = document.getElementById('backhaulLocation');
 
-        // 1. 立即初始化回頭車下拉選單選項
+        // 1. 初始化回頭車下拉選單選項
         function initBackhaulOptions() {
             backhaulSelect.innerHTML = '<option value="" data-fee="0">-- 請選擇回頭車地點 --</option>';
             Object.keys(backhaulData).forEach(loc => {
@@ -257,7 +255,7 @@
         }
         initBackhaulOptions();
 
-        // 2. 獨立監聽配送方式切換（確保點選回頭車100%彈出選項）
+        // 2. 獨立監聽配送方式切換
         function bindShippingEvents() {
             const shippingRadios = document.querySelectorAll('input[name="shippingMethod"]');
             shippingRadios.forEach(radio => {
@@ -279,48 +277,54 @@
         }
         bindShippingEvents();
 
-        // 3. 渲染商品列表
+        // 3. 渲染單一商品放大卡片版面
         function renderProducts(data) {
             productData = data;
             productList.innerHTML = '';
 
             if (!productData || productData.length === 0) {
-                productList.innerHTML = '<p class="col-span-full text-center py-10 text-gray-400">目前尚無上架商品</p>';
+                productList.innerHTML = '<p class="text-center py-10 text-gray-400">目前尚無上架商品</p>';
                 return;
             }
 
             productData.forEach((p, i) => {
+                const imgSrc = p.img || targetImgUrl;
                 const card = `
-                    <div class="bg-white rounded-2xl shadow-sm border border-emerald-100 p-3.5 flex flex-col items-center hover:shadow-md transition">
-                        ${p.img ? `<img src="${p.img}" class="product-img w-full mb-3 rounded-xl bg-gray-50" alt="${p.name}">` : ''}
-                        ${p.series ? `<h3 class="text-xmas-green font-black text-base leading-tight mb-1">${p.series}</h3>` : ''}
-                        <p class="text-xs font-bold text-gray-800 text-center leading-snug my-1">${p.name}</p>
-                        <p class="text-xmas-green font-extrabold text-sm mt-1">NT$${p.price.toLocaleString()}</p>
-                        <div class="w-full flex items-center justify-between pt-3 border-t border-gray-100 mt-3">
-                            <span class="text-[10px] text-gray-400 font-bold uppercase">數量</span>
-                            <input type="number" data-index="${i}" value="0" min="0" 
-                                class="qty-input w-16 border border-gray-200 rounded-lg py-1 text-center font-bold text-gray-800 focus-xmas-green outline-none transition">
+                    <div class="bg-white rounded-2xl shadow-sm border border-emerald-100 p-5 md:p-6 flex flex-col md:flex-row items-center gap-6 hover:shadow-md transition">
+                        <div class="w-full md:w-1/2 max-w-md">
+                            <img src="${imgSrc}" class="w-full h-64 md:h-80 object-cover rounded-xl shadow-inner bg-gray-50" alt="${p.name}">
+                        </div>
+                        <div class="w-full md:w-1/2 flex flex-col justify-between space-y-4 text-center md:text-left">
+                            <div>
+                                ${p.series ? `<h3 class="text-xmas-green font-black text-lg mb-1">${p.series}</h3>` : ''}
+                                <h3 class="text-xl md:text-2xl font-black text-gray-900 leading-snug">${p.name}</h3>
+                                <p class="text-xmas-green font-black text-2xl md:text-3xl mt-3">NT$${p.price.toLocaleString()}</p>
+                            </div>
+                            <div class="pt-4 border-t border-gray-100 flex items-center justify-between md:justify-start gap-4">
+                                <span class="text-sm text-gray-600 font-bold">訂購數量 (綑)</span>
+                                <input type="number" data-index="${i}" value="0" min="0" 
+                                    class="qty-input w-24 border-2 border-emerald-200 rounded-xl py-2 px-3 text-center font-black text-xl text-gray-800 focus-xmas-green outline-none transition bg-emerald-50/20">
+                            </div>
                         </div>
                     </div>
                 `;
                 productList.innerHTML += card;
             });
 
-            // 綁定數量變更事件
             document.querySelectorAll('.qty-input').forEach(el => {
                 el.addEventListener('change', calculateTotal);
                 el.addEventListener('input', calculateTotal);
             });
         }
 
-        // 4. 嘗試向 GAS 抓取資料，若被 CORS 阻擋則載入預設商品
-        fetch(scriptURL + '?action=getProducts')
+        // 4. 載入資料
+        fetch(scriptURL)
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data) && data.length > 0) {
                     const parsed = data.map(item => ({
                         name: item['品名'] || item.name || item.title || '進口聖誕諾貝松切枝一綑裝5kg',
-                        img: item['img url'] || item.img || item.image || item.url || '',
+                        img: item['img url'] || item.img || item.image || item.url || targetImgUrl,
                         price: Number(item['price'] || item.price || item['單價'] || 2800),
                         series: item['series'] || item.series || ''
                     }));
@@ -330,7 +334,6 @@
                 }
             })
             .catch(err => {
-                console.warn('GAS Fetch CORS 被阻擋，改用自動備用資料:', err);
                 renderProducts(fallbackProducts);
             });
 
@@ -370,7 +373,7 @@
             }
         }
 
-        // 6. 表單提交處理
+        // 6. 表單提交處理 (POST 至 GAS)
         document.getElementById('orderForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const items = [];
@@ -415,7 +418,12 @@
                 totalWithShipping: parseInt(totalVal.replace(/[^0-9]/g, ''))
             };
 
-            fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) })
+            fetch(scriptURL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            })
             .then(() => {
                 document.getElementById('resName').textContent = payload.customer.name;
                 document.getElementById('resPhone').textContent = payload.customer.phone;
