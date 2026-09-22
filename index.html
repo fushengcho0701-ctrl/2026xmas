@@ -107,7 +107,7 @@
                 📦 訂購內容
             </h2>
             <div id="productList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-10">
-                <p class="col-span-full text-center py-16 text-emerald-800 font-medium animate-pulse">正在同步載入諾貝松品項...</p>
+                <p class="col-span-full text-center py-16 text-emerald-800 font-medium animate-pulse">正在載入商品資料...</p>
             </div>
 
             <!-- 配送方式 -->
@@ -130,8 +130,8 @@
                     </label>
                 </div>
                 <div id="backhaulOptions" class="hidden mt-4 pt-4 border-t border-gray-100">
-                    <label class="block text-xs font-bold text-gray-600 mb-1">請選擇回頭車卸貨地點：</label>
-                    <select id="backhaulLocation" class="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 outline-none focus-xmas-green">
+                    <label class="block text-xs font-bold text-gray-600 mb-2">請選擇回頭車卸貨地點：</label>
+                    <select id="backhaulLocation" class="w-full border-gray-200 border p-3 rounded-xl bg-gray-50 outline-none focus-xmas-green text-sm">
                         <option value="" data-fee="0">-- 請選擇回頭車地點 --</option>
                     </select>
                 </div>
@@ -230,82 +230,118 @@
             "高雄尚陶坊花店": 200, "高雄花市": 200, "屏東國芳花店": 200
         };
 
+        // 預設備用商品資料（當 GAS 因 CORS 讀取失敗時備用）
+        const fallbackProducts = [
+            {
+                name: '進口聖誕諾貝松切枝一綑裝5kg',
+                img: 'https://images.unsplash.com/photo-1543589077-47d81606c1bf?auto=format&fit=crop&w=500&q=80',
+                price: 2800,
+                series: ''
+            }
+        ];
+
         let productData = [];
         const productList = document.getElementById('productList');
         const backhaulSelect = document.getElementById('backhaulLocation');
 
-        // 初始化回頭車下拉選項
-        Object.keys(backhaulData).forEach(loc => {
-            const opt = document.createElement('option');
-            opt.value = loc;
-            opt.textContent = `${loc} (+$${backhaulData[loc]})`;
-            opt.dataset.fee = backhaulData[loc];
-            backhaulSelect.appendChild(opt);
-        });
-
-        // 載入商品資料 (相容不同欄位名稱命名)
-        fetch(scriptURL)
-            .then(res => res.json())
-            .then(data => {
-                productData = data.map(item => ({
-                    name: item['品名'] || item.name || item.title || '諾貝松',
-                    img: item['img url'] || item.img || item.image || item.url || '',
-                    price: Number(item['price'] || item.price || item['單價'] || 2800),
-                    series: item['series'] || item.series || ''
-                }));
-
-                productList.innerHTML = '';
-
-                if (!productData || productData.length === 0) {
-                    productList.innerHTML = '<p class="col-span-full text-center py-10 text-gray-400">目前尚無上架商品</p>';
-                    return;
-                }
-
-                productData.forEach((p, i) => {
-                    const card = `
-                        <div class="bg-white rounded-2xl shadow-sm border border-emerald-100 p-3.5 flex flex-col items-center hover:shadow-md transition">
-                            ${p.img ? `<img src="${p.img}" class="product-img w-full mb-3 rounded-xl bg-gray-50" alt="${p.name}">` : ''}
-                            ${p.series ? `<h3 class="text-xmas-green font-black text-base leading-tight mb-1">${p.series}</h3>` : ''}
-                            <p class="text-xs font-bold text-gray-800 text-center leading-snug my-1">${p.name}</p>
-                            <p class="text-xmas-green font-extrabold text-sm mt-1">NT$${p.price.toLocaleString()}</p>
-                            <div class="w-full flex items-center justify-between pt-3 border-t border-gray-100 mt-3">
-                                <span class="text-[10px] text-gray-400 font-bold uppercase">數量</span>
-                                <input type="number" data-index="${i}" value="0" min="0" 
-                                    class="qty-input w-16 border border-gray-200 rounded-lg py-1 text-center font-bold text-gray-800 focus-xmas-green outline-none transition">
-                            </div>
-                        </div>
-                    `;
-                    productList.innerHTML += card;
-                });
-                setupListeners();
-            })
-            .catch(err => {
-                console.error('Error fetching data:', err);
-                productList.innerHTML = '<p class="col-span-full text-center py-10 text-red-500 font-bold">資料載入失敗，請稍後重試或聯繫客服。</p>';
+        // 1. 立即初始化回頭車下拉選單選項
+        function initBackhaulOptions() {
+            backhaulSelect.innerHTML = '<option value="" data-fee="0">-- 請選擇回頭車地點 --</option>';
+            Object.keys(backhaulData).forEach(loc => {
+                const opt = document.createElement('option');
+                opt.value = loc;
+                opt.textContent = `${loc} (+$${backhaulData[loc]})`;
+                opt.dataset.fee = backhaulData[loc];
+                backhaulSelect.appendChild(opt);
             });
+        }
+        initBackhaulOptions();
 
-        // 監聽事件綁定
-        function setupListeners() {
-            document.querySelectorAll('.qty-input').forEach(el => {
-                el.addEventListener('change', calculateTotal);
-                el.addEventListener('input', calculateTotal);
-            });
-
-            document.querySelectorAll('input[name="shippingMethod"]').forEach(el => {
-                el.addEventListener('change', calculateTotal);
+        // 2. 獨立監聽配送方式切換（確保點選回頭車100%彈出選項）
+        function bindShippingEvents() {
+            const shippingRadios = document.querySelectorAll('input[name="shippingMethod"]');
+            shippingRadios.forEach(radio => {
+                const handleToggle = () => {
+                    const selected = document.querySelector('input[name="shippingMethod"]:checked');
+                    const backhaulBox = document.getElementById('backhaulOptions');
+                    if (selected && selected.value === '回頭車') {
+                        backhaulBox.classList.remove('hidden');
+                    } else {
+                        backhaulBox.classList.add('hidden');
+                    }
+                    calculateTotal();
+                };
+                radio.addEventListener('change', handleToggle);
+                radio.addEventListener('click', handleToggle);
             });
 
             backhaulSelect.addEventListener('change', calculateTotal);
         }
+        bindShippingEvents();
 
-        // 金額加總計算
+        // 3. 渲染商品列表
+        function renderProducts(data) {
+            productData = data;
+            productList.innerHTML = '';
+
+            if (!productData || productData.length === 0) {
+                productList.innerHTML = '<p class="col-span-full text-center py-10 text-gray-400">目前尚無上架商品</p>';
+                return;
+            }
+
+            productData.forEach((p, i) => {
+                const card = `
+                    <div class="bg-white rounded-2xl shadow-sm border border-emerald-100 p-3.5 flex flex-col items-center hover:shadow-md transition">
+                        ${p.img ? `<img src="${p.img}" class="product-img w-full mb-3 rounded-xl bg-gray-50" alt="${p.name}">` : ''}
+                        ${p.series ? `<h3 class="text-xmas-green font-black text-base leading-tight mb-1">${p.series}</h3>` : ''}
+                        <p class="text-xs font-bold text-gray-800 text-center leading-snug my-1">${p.name}</p>
+                        <p class="text-xmas-green font-extrabold text-sm mt-1">NT$${p.price.toLocaleString()}</p>
+                        <div class="w-full flex items-center justify-between pt-3 border-t border-gray-100 mt-3">
+                            <span class="text-[10px] text-gray-400 font-bold uppercase">數量</span>
+                            <input type="number" data-index="${i}" value="0" min="0" 
+                                class="qty-input w-16 border border-gray-200 rounded-lg py-1 text-center font-bold text-gray-800 focus-xmas-green outline-none transition">
+                        </div>
+                    </div>
+                `;
+                productList.innerHTML += card;
+            });
+
+            // 綁定數量變更事件
+            document.querySelectorAll('.qty-input').forEach(el => {
+                el.addEventListener('change', calculateTotal);
+                el.addEventListener('input', calculateTotal);
+            });
+        }
+
+        // 4. 嘗試向 GAS 抓取資料，若被 CORS 阻擋則載入預設商品
+        fetch(scriptURL + '?action=getProducts')
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data) && data.length > 0) {
+                    const parsed = data.map(item => ({
+                        name: item['品名'] || item.name || item.title || '進口聖誕諾貝松切枝一綑裝5kg',
+                        img: item['img url'] || item.img || item.image || item.url || '',
+                        price: Number(item['price'] || item.price || item['單價'] || 2800),
+                        series: item['series'] || item.series || ''
+                    }));
+                    renderProducts(parsed);
+                } else {
+                    renderProducts(fallbackProducts);
+                }
+            })
+            .catch(err => {
+                console.warn('GAS Fetch CORS 被阻擋，改用自動備用資料:', err);
+                renderProducts(fallbackProducts);
+            });
+
+        // 5. 金額計算 logic
         function calculateTotal() {
             let subtotal = 0;
             let summaryHtml = '';
             
             document.querySelectorAll('.qty-input').forEach(input => {
                 const qty = parseInt(input.value) || 0;
-                if (qty > 0) {
+                if (qty > 0 && productData[input.dataset.index]) {
                     const p = productData[input.dataset.index];
                     const itemTotal = qty * p.price;
                     subtotal += itemTotal;
@@ -318,11 +354,8 @@
             let shipFee = 0;
 
             if (shipMethod === '回頭車') {
-                document.getElementById('backhaulOptions').classList.remove('hidden');
                 const selectedOption = backhaulSelect.selectedOptions[0];
                 shipFee = selectedOption ? (parseInt(selectedOption.dataset.fee) || 0) : 0;
-            } else {
-                document.getElementById('backhaulOptions').classList.add('hidden');
             }
 
             const total = subtotal + shipFee;
@@ -337,14 +370,14 @@
             }
         }
 
-        // 表單提交處理
+        // 6. 表單提交處理
         document.getElementById('orderForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const items = [];
             
             document.querySelectorAll('.qty-input').forEach(input => {
                 const qty = parseInt(input.value) || 0;
-                if (qty > 0) {
+                if (qty > 0 && productData[input.dataset.index]) {
                     const p = productData[input.dataset.index];
                     items.push({ name: p.name, price: p.price, quantity: qty });
                 }
