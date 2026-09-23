@@ -64,9 +64,9 @@
                 </h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div class="md:col-span-3 mb-2">
-                        <label class="flex items-center space-x-2 p-3 bg-emerald-50/70 rounded-xl cursor-pointer border border-emerald-100 hover:bg-emerald-100/50 transition">
-                            <input type="checkbox" id="terms" class="w-4 h-4 accent-emerald-700" required>
-                            <span class="text-sm font-bold text-xmas-green">我已閱讀並同意上述訂購須知</span>
+                        <label class="flex items-start space-x-2.5 p-3.5 bg-emerald-50/80 rounded-xl cursor-pointer border border-emerald-200 hover:bg-emerald-100/60 transition">
+                            <input type="checkbox" id="terms" class="w-4 h-4 accent-emerald-700 mt-0.5" required>
+                            <span class="text-sm font-bold text-xmas-green leading-snug">我已閱讀並同意上述訂購須知，並在送出訂單後回傳訂單截圖至 LINE 官方帳號</span>
                         </label>
                     </div>
                     <div>
@@ -157,7 +157,11 @@
                 <div class="text-center mb-6">
                     <div class="text-5xl mb-2">🎄</div>
                     <h2 class="text-2xl font-black text-xmas-green uppercase tracking-widest">預購單已送出</h2>
-                    <p class="text-gray-500 text-xs mt-1">請截圖此畫面並至 LINE 回傳匯款證明完成訂購</p>
+                    <div class="mt-3 bg-red-50 border border-red-200 rounded-xl p-3 inline-block">
+                        <p class="text-red-600 font-bold text-sm md:text-base leading-snug">
+                            ⚠️ 請回傳訂單截圖以及匯款證明至福盛園藝 LINE 官方帳號才算完成訂購！
+                        </p>
+                    </div>
                 </div>
 
                 <div class="order-slip shadow-xl border-2 border-emerald-100">
@@ -373,7 +377,7 @@
             }
         }
 
-        // 6. 表單提交處理 (POST 至 GAS)
+        // 6. 表單提交處理
         document.getElementById('orderForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const items = [];
